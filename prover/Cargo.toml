@@ -25,6 +25,9 @@ tracing = "0.1.40"
 tracing-log = "0.2.0"
 tracing-subscriber = { version = "0.3.17", features = ["std", "env-filter"] }
 gnark-plonky2-verifier-ffi = { path = "../ffi" }
+ark-bls12-381 = { version =  "0.4" }
+ark-serialize = { version = "0.4.2", features = ["derive"] }
+ark-groth16 = { version = "0.4.0", features = ["parallel"] }
 
 [features]
 default = ["std"]
