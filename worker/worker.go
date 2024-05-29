@@ -20,6 +20,18 @@ import (
 	"github.com/zilong-dai/gnark/frontend/cs/r1cs"
 )
 
+type PreparedCircuit struct {
+	PKey *groth16_bls12381.ProvingKey
+	VKey *groth16_bls12381.VerifyingKey
+	CCS  *constraint.ConstraintSystem
+}
+
+var prepCircuit1 = PreparedCircuit{
+	PKey: nil,
+	VKey: nil,
+	CCS:  nil,
+}
+
 type CRVerifierCircuit struct {
 	PublicInputs            []frontend.Variable               `gnark:",public"`
 	Proof                   variables.Proof                   `gnark:",secret"`
@@ -129,7 +141,7 @@ func GenerateProof(common_circuit_data string, proof_with_public_inputs string, 
 		panic(err)
 	}
 
-	proof, err := groth16.Prove(cs, pk, witness)
+	proof, err := groth16.Prove(*cs, pk, witness)
 	if err != nil {
 		panic(err)
 	}
@@ -145,7 +157,7 @@ func GenerateProof(common_circuit_data string, proof_with_public_inputs string, 
 	// }
 
 	blsProof := proof.(*groth16_bls12381.Proof)
-	blsVk := vk.(*groth16_bls12381.VerifyingKey)
+	blsVk := vk
 	blsWitness := publicWitness.Vector().(fr.Vector)
 
 	original_proof_bytes, err := json.Marshal(&G16ProofWithPublicInputs{
@@ -213,7 +225,10 @@ func VerifyProof(proofString string, vkString string) string {
 	return "true"
 }
 
-func Setup(circuit *CRVerifierCircuit, keystore_path string) (constraint.ConstraintSystem, groth16.ProvingKey, groth16.VerifyingKey, error) {
+func Setup(circuit *CRVerifierCircuit, keystore_path string) (*constraint.ConstraintSystem, *groth16_bls12381.ProvingKey, *groth16_bls12381.VerifyingKey, error) {
+	if prepCircuit1.CCS != nil && prepCircuit1.PKey != nil && prepCircuit1.VKey != nil {
+		return prepCircuit1.CCS, prepCircuit1.PKey, prepCircuit1.VKey, nil
+	}
 	if _, err := os.Stat(keystore_path + VK_PATH); err == nil {
 		ccs, err := ReadCircuit(ecc.BLS12_381, keystore_path+CIRCUIT_PATH)
 		if err != nil {
@@ -227,30 +242,35 @@ func Setup(circuit *CRVerifierCircuit, keystore_path string) (constraint.Constra
 		if err != nil {
 			return nil, nil, nil, err
 		}
-		return ccs, pk, vk, nil
+		prepCircuit1.CCS = &ccs
+		prepCircuit1.PKey = pk.(*groth16_bls12381.ProvingKey)
+		prepCircuit1.VKey = vk.(*groth16_bls12381.VerifyingKey)
+	} else {
+		ccs, err := frontend.Compile(ecc.BLS12_381.ScalarField(), r1cs.NewBuilder, circuit)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+
+		pk, vk, err := groth16.Setup(ccs)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+
+		if err := WriteCircuit(ccs, keystore_path+CIRCUIT_PATH); err != nil {
+			return nil, nil, nil, err
+		}
+
+		if err := WriteVerifyingKey(vk, keystore_path+VK_PATH); err != nil {
+			return nil, nil, nil, err
+		}
+
+		if err := WriteProvingKey(pk, keystore_path+PK_PATH); err != nil {
+			return nil, nil, nil, err
+		}
+		prepCircuit1.CCS = &ccs
+		prepCircuit1.PKey = pk.(*groth16_bls12381.ProvingKey)
+		prepCircuit1.VKey = vk.(*groth16_bls12381.VerifyingKey)
 	}
 
-	ccs, err := frontend.Compile(ecc.BLS12_381.ScalarField(), r1cs.NewBuilder, circuit)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	pk, vk, err := groth16.Setup(ccs)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	if err := WriteCircuit(ccs, keystore_path+CIRCUIT_PATH); err != nil {
-		return nil, nil, nil, err
-	}
-
-	if err := WriteVerifyingKey(vk, keystore_path+VK_PATH); err != nil {
-		return nil, nil, nil, err
-	}
-
-	if err := WriteProvingKey(pk, keystore_path+PK_PATH); err != nil {
-		return nil, nil, nil, err
-	}
-
-	return ccs, pk, vk, nil
+	return prepCircuit1.CCS, prepCircuit1.PKey, prepCircuit1.VKey, nil
 }
