@@ -45,6 +45,11 @@ pub fn wrap_plonky2_proof(
     ))
 }
 
+pub fn initialize(key_path: &str) -> anyhow::Result<()>{
+    gnark_plonky2_verifier_ffi::initialize(key_path);
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use plonky2::field::types::Field;
@@ -83,13 +88,13 @@ mod tests {
         for i in 0..224 {
             builder.register_public_input(if i & 1 == 1 { one_t } else { zero_t });
         }
-        for i in 224..256 {
+        for _i in 224..256 {
             builder.register_public_input(zero_t);
         }
         for i in 256..480 {
             builder.register_public_input(if i & 1 == 1 { one_t } else { zero_t });
         }
-        for i in 480..512 {
+        for _i in 480..512 {
             builder.register_public_input(zero_t);
         }
 
@@ -120,8 +125,9 @@ mod tests {
 
     #[test]
     fn test_setup_once() {
-       test_prover(Some("../testdata/0"), "/0/").unwrap();
-       test_prover(Some("../testdata/0"), "/0/").unwrap();
-       test_prover(Some("../testdata/0"), "/0/").unwrap();
+        initialize("/tmp/groth16/").unwrap();
+        test_prover(Some("../testdata/0"), "/tmp/groth16/").unwrap();
+        test_prover(Some("../testdata/0"), "/tmp/groth16/").unwrap();
+        test_prover(Some("../testdata/0"), "/tmp/groth16/").unwrap();
     }
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"time"
 
 	"github.com/GopherJ/doge-covenant/serialize"
 	gl "github.com/cf/gnark-plonky2-verifier/goldilocks"
@@ -30,6 +31,34 @@ var prepCircuit1 = PreparedCircuit{
 	PKey: nil,
 	VKey: nil,
 	CCS:  nil,
+}
+
+func Initialize(keystore_path string) {
+	fmt.Println("Initializing...", time.Now())
+	var pk groth16.ProvingKey
+	var vk groth16.VerifyingKey
+	var ccs constraint.ConstraintSystem
+	var err error
+	if _, err = os.Stat(keystore_path + VK_PATH); err != nil {
+		panic(err)
+	}
+	ccs, err = ReadCircuit(ecc.BLS12_381, keystore_path+CIRCUIT_PATH)
+	if err != nil {
+		panic(err)
+	}
+	vk, err = ReadVerifyingKey(ecc.BLS12_381, keystore_path+VK_PATH)
+	if err != nil {
+		panic(err)
+	}
+	pk, err = ReadProvingKey(ecc.BLS12_381, keystore_path+PK_PATH)
+	if err != nil {
+		panic(err)
+	}
+
+	prepCircuit1.CCS = &ccs
+	prepCircuit1.PKey = pk.(*groth16_bls12381.ProvingKey)
+	prepCircuit1.VKey = vk.(*groth16_bls12381.VerifyingKey)
+	fmt.Println("Initializing End...", time.Now())
 }
 
 type CRVerifierCircuit struct {
@@ -229,6 +258,7 @@ func Setup(circuit *CRVerifierCircuit, keystore_path string) (*constraint.Constr
 	if prepCircuit1.CCS != nil && prepCircuit1.PKey != nil && prepCircuit1.VKey != nil {
 		return prepCircuit1.CCS, prepCircuit1.PKey, prepCircuit1.VKey, nil
 	}
+	fmt.Println("you have to initialize all the keys first")
 	if _, err := os.Stat(keystore_path + VK_PATH); err == nil {
 		ccs, err := ReadCircuit(ecc.BLS12_381, keystore_path+CIRCUIT_PATH)
 		if err != nil {

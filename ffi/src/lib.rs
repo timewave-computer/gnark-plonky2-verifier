@@ -56,6 +56,13 @@ pub fn verify_groth16_proof(
     }
 }
 
+pub fn initialize(key_path: &str) {
+    let c_key_path_string = CString::new(key_path).unwrap();
+    unsafe {
+        bindings::Initialize(c_key_path_string.into_raw());
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
