@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/GopherJ/doge-covenant/serialize"
@@ -34,23 +35,24 @@ var prepCircuit1 = PreparedCircuit{
 }
 
 func Initialize(keystore_path string) {
-	fmt.Println("Initializing...", time.Now())
+	fmt.Println("Initializing...", time.Now().Format("2006-01-02 15:04:05"))
 	var pk groth16.ProvingKey
 	var vk groth16.VerifyingKey
 	var ccs constraint.ConstraintSystem
 	var err error
-	if _, err = os.Stat(keystore_path + VK_PATH); err != nil {
-		panic(err)
+	if !CheckKeysExist(keystore_path) {
+		panic("Initializing Keys not exist")
 	}
-	ccs, err = ReadCircuit(ecc.BLS12_381, keystore_path+CIRCUIT_PATH)
+
+	ccs, err = ReadCircuit(ecc.BLS12_381, filepath.Join(keystore_path,CIRCUIT_PATH))
 	if err != nil {
 		panic(err)
 	}
-	vk, err = ReadVerifyingKey(ecc.BLS12_381, keystore_path+VK_PATH)
+	vk, err = ReadVerifyingKey(ecc.BLS12_381, filepath.Join(keystore_path,VK_PATH))
 	if err != nil {
 		panic(err)
 	}
-	pk, err = ReadProvingKey(ecc.BLS12_381, keystore_path+PK_PATH)
+	pk, err = ReadProvingKey(ecc.BLS12_381, filepath.Join(keystore_path,PK_PATH))
 	if err != nil {
 		panic(err)
 	}
@@ -58,7 +60,7 @@ func Initialize(keystore_path string) {
 	prepCircuit1.CCS = &ccs
 	prepCircuit1.PKey = pk.(*groth16_bls12381.ProvingKey)
 	prepCircuit1.VKey = vk.(*groth16_bls12381.VerifyingKey)
-	fmt.Println("Initializing End...", time.Now())
+	fmt.Println("Initializing End...", time.Now().Format("2006-01-02 15:04:05"))
 }
 
 type CRVerifierCircuit struct {
@@ -93,11 +95,7 @@ func (c *CRVerifierCircuit) Define(api frontend.API) error {
 		sighashAcc = api.Mul(sighashAcc, two)
 		sighashAcc = api.Add(sighashAcc, c.OriginalPublicInputs[i].Limb)
 	}
-
-	api.Println("PublicInputs[0]", c.PublicInputs[0])
-	api.Println("blockStateHashAcc", blockStateHashAcc)
-	api.Println("PublicInputs[1]", c.PublicInputs[1])
-	api.Println("sighashAcc", sighashAcc)
+	
 	api.AssertIsEqual(c.PublicInputs[0], blockStateHashAcc)
 	api.AssertIsEqual(c.PublicInputs[1], sighashAcc)
 
@@ -119,9 +117,7 @@ func GenerateProof(common_circuit_data string, proof_with_public_inputs string, 
 	initKeyStorePath(keystore_path)
 
 	commonCircuitData := types.ReadCommonCircuitDataRaw(common_circuit_data)
-
 	verifierOnlyCircuitDataRaw := types.ReadVerifierOnlyCircuitDataRaw(verifier_only_circuit_data)
-	fmt.Println("circuit digest: ", verifierOnlyCircuitDataRaw.CircuitDigest)
 	verifierOnlyCircuitData := variables.DeserializeVerifierOnlyCircuitData(verifierOnlyCircuitDataRaw)
 
 	rawProofWithPis := types.ReadProofWithPublicInputsRaw(proof_with_public_inputs)
@@ -189,22 +185,22 @@ func GenerateProof(common_circuit_data string, proof_with_public_inputs string, 
 	blsVk := vk
 	blsWitness := publicWitness.Vector().(fr.Vector)
 
-	original_proof_bytes, err := json.Marshal(&G16ProofWithPublicInputs{
-		Proof:        blsProof,
-		PublicInputs: publicWitness,
-	})
-	if err != nil {
-		panic(err)
-	}
-	var g16VerifyingKey = G16VerifyingKey{
-		VK: vk,
-	}
-	original_vk_bytes, err := json.Marshal(g16VerifyingKey)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println("proofString", string(original_proof_bytes))
-	fmt.Println("vkString", string(original_vk_bytes))
+	// original_proof_bytes, err := json.Marshal(&G16ProofWithPublicInputs{
+	// 	Proof:        blsProof,
+	// 	PublicInputs: publicWitness,
+	// })
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// var g16VerifyingKey = G16VerifyingKey{
+	// 	VK: vk,
+	// }
+	// original_vk_bytes, err := json.Marshal(g16VerifyingKey)
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// fmt.Println("proofString", string(original_proof_bytes))
+	// fmt.Println("vkString", string(original_vk_bytes))
 
 	proof_city, err := serialize.ToJsonCityProof(blsProof, blsWitness)
 	if err != nil {
@@ -259,16 +255,16 @@ func Setup(circuit *CRVerifierCircuit, keystore_path string) (*constraint.Constr
 		return prepCircuit1.CCS, prepCircuit1.PKey, prepCircuit1.VKey, nil
 	}
 	fmt.Println("you have to initialize all the keys first")
-	if _, err := os.Stat(keystore_path + VK_PATH); err == nil {
-		ccs, err := ReadCircuit(ecc.BLS12_381, keystore_path+CIRCUIT_PATH)
+	if CheckKeysExist(keystore_path) {
+		ccs, err := ReadCircuit(ecc.BLS12_381, filepath.Join(keystore_path,CIRCUIT_PATH))
 		if err != nil {
 			return nil, nil, nil, err
 		}
-		vk, err := ReadVerifyingKey(ecc.BLS12_381, keystore_path+VK_PATH)
+		vk, err := ReadVerifyingKey(ecc.BLS12_381, filepath.Join(keystore_path,VK_PATH))
 		if err != nil {
 			return nil, nil, nil, err
 		}
-		pk, err := ReadProvingKey(ecc.BLS12_381, keystore_path+PK_PATH)
+		pk, err := ReadProvingKey(ecc.BLS12_381, filepath.Join(keystore_path,PK_PATH))
 		if err != nil {
 			return nil, nil, nil, err
 		}

@@ -45,6 +45,15 @@ pub fn wrap_plonky2_proof(
     ))
 }
 
+pub fn verify_groth16_proof(
+    proof_with_public_inputs: &str,
+    vk: &str,
+) -> anyhow::Result<bool>{
+
+    let result = gnark_plonky2_verifier_ffi::verify_groth16_proof(&proof_with_public_inputs, &vk);
+    Ok(result == "true")
+}
+
 pub fn initialize(key_path: &str) -> anyhow::Result<()>{
     gnark_plonky2_verifier_ffi::initialize(key_path);
     Ok(())
@@ -109,7 +118,7 @@ mod tests {
         tracing::info!("verifying...");
         data.verify(proof.clone())?;
         tracing::info!("done!");
-        tracing::info!("original public inputs: {:?}", proof.public_inputs);
+        // tracing::info!("original public inputs: {:?}", proof.public_inputs);
 
         tracing::info!("compiling wrapping circuits...");
         let (g16_proof, g16_vk) = wrap_plonky2_proof(data, &proof, save_wrapped_data_path, id)?;
@@ -118,7 +127,7 @@ mod tests {
         println!("proof {}", g16_proof);
         println!("vk {}", g16_vk);
 
-        println!("verify {}", gnark_plonky2_verifier_ffi::verify_groth16_proof(&g16_proof, &g16_vk));
+        println!("verify {:?}", verify_groth16_proof(&g16_proof, &g16_vk));
 
         Ok(())
     }

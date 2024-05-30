@@ -1,7 +1,6 @@
 package verifier
 
 import (
-	"github.com/zilong-dai/gnark/frontend"
 	"github.com/cf/gnark-plonky2-verifier/challenger"
 	"github.com/cf/gnark-plonky2-verifier/fri"
 	gl "github.com/cf/gnark-plonky2-verifier/goldilocks"
@@ -9,6 +8,7 @@ import (
 	"github.com/cf/gnark-plonky2-verifier/poseidon"
 	"github.com/cf/gnark-plonky2-verifier/types"
 	"github.com/cf/gnark-plonky2-verifier/variables"
+	"github.com/zilong-dai/gnark/frontend"
 )
 
 type VerifierChip struct {
@@ -28,13 +28,13 @@ func NewVerifierChip(api frontend.API, commonCircuitData types.CommonCircuitData
 	poseidonGlChip := poseidon.NewGoldilocksChip(api)
 	poseidonBLS12381Chip := poseidon.NewBLS12381Chip(api)
 	return &VerifierChip{
-		api:               api,
-		glChip:            glChip,
-		poseidonGlChip:    poseidonGlChip,
+		api:                  api,
+		glChip:               glChip,
+		poseidonGlChip:       poseidonGlChip,
 		poseidonBLS12381Chip: poseidonBLS12381Chip,
-		plonkChip:         plonkChip,
-		friChip:           friChip,
-		commonData:        commonCircuitData,
+		plonkChip:            plonkChip,
+		friChip:              friChip,
+		commonData:           commonCircuitData,
 	}
 }
 
@@ -53,31 +53,15 @@ func (c *VerifierChip) GetChallenges(
 
 	var circuitDigest = verifierData.CircuitDigest
 
-  c.api.Println("circuitDigest", circuitDigest)
 	challenger.ObserveBLS12381Hash(circuitDigest)
-  c.api.Println("hash", publicInputsHash)
 	challenger.ObserveHash(publicInputsHash)
-  c.api.Println("cap")
 	challenger.ObserveCap(proof.WiresCap)
-	for i := 0; i < len(proof.WiresCap); i++ {
-    c.api.Println("wires cap", proof.WiresCap[i])
-  }
 	plonkBetas := challenger.GetNChallenges(numChallenges)
-  c.api.Println("get plonk betas challenges", plonkBetas[0])
 	plonkGammas := challenger.GetNChallenges(numChallenges)
-  c.api.Println("get plonk gammas challenges", plonkGammas[0])
-
-  c.api.Println("cap")
 	challenger.ObserveCap(proof.PlonkZsPartialProductsCap)
 	plonkAlphas := challenger.GetNChallenges(numChallenges)
-  c.api.Println("get plonk alpha challenges", plonkAlphas[0])
-
-  c.api.Println("cap")
 	challenger.ObserveCap(proof.QuotientPolysCap)
 	plonkZeta := challenger.GetExtensionChallenge()
-  c.api.Println("get plonk zeta:", plonkZeta[0])
-
-  c.api.Println("observe openings")
 	challenger.ObserveOpenings(c.friChip.ToOpenings(proof.Openings))
 
 	return variables.ProofChallenges{
@@ -162,7 +146,6 @@ func (c *VerifierChip) Verify(
 
 	// Generate the parts of the witness that is for the plonky2 proof input
 	publicInputsHash := c.GetPublicInputsHash(publicInputs)
-  c.api.Println("publicInputsHash", publicInputsHash)
 	proofChallenges := c.GetChallenges(proof, publicInputsHash, verifierData)
 
 	// c.plonkChip.Verify(proofChallenges, proof.Openings, publicInputsHash)
