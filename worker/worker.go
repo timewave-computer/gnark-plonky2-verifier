@@ -17,6 +17,7 @@ import (
 	"github.com/consensys/gnark-crypto/ecc/bls12-381/fr"
 	"github.com/zilong-dai/gnark/backend/groth16"
 	groth16_bls12381 "github.com/zilong-dai/gnark/backend/groth16/bls12-381"
+	"github.com/zilong-dai/gnark/backend/witness"
 	"github.com/zilong-dai/gnark/constraint"
 	"github.com/zilong-dai/gnark/frontend"
 	"github.com/zilong-dai/gnark/frontend/cs/r1cs"
@@ -95,7 +96,7 @@ func (c *CRVerifierCircuit) Define(api frontend.API) error {
 		sighashAcc = api.Mul(sighashAcc, two)
 		sighashAcc = api.Add(sighashAcc, c.OriginalPublicInputs[i].Limb)
 	}
-	
+
 	api.AssertIsEqual(c.PublicInputs[0], blockStateHashAcc)
 	api.AssertIsEqual(c.PublicInputs[1], sighashAcc)
 
@@ -156,7 +157,7 @@ func GenerateProof(common_circuit_data string, proof_with_public_inputs string, 
 
 	// NewWitness() must be called before Compile() to avoid gnark panicking.
 	// ref: https://github.com/Consensys/gnark/issues/1038
-	witness, err := frontend.NewWitness(&assignment, ecc.BLS12_381.ScalarField())
+	wit, err := frontend.NewWitness(&assignment, ecc.BLS12_381.ScalarField())
 	if err != nil {
 		panic(err)
 	}
@@ -166,41 +167,52 @@ func GenerateProof(common_circuit_data string, proof_with_public_inputs string, 
 		panic(err)
 	}
 
-	proof, err := groth16.Prove(*cs, pk, witness)
-	if err != nil {
-		panic(err)
-	}
+  var proof groth16.Proof
+  var publicWitness  witness.Witness
+  var retries = 0
 
-	publicWitness, err := witness.Public()
-	if err != nil {
-		panic(err)
-	}
+  for {
+    proof, err = groth16.Prove(*cs, pk, wit)
+    if err != nil {
+      panic(err)
+    }
 
-	// err = groth16.Verify(proof, vk, publicWitness)
-	// if err != nil {
-	// 	panic(err)
-	// }
+    publicWitness, err = wit.Public()
+    if err != nil {
+      panic(err)
+    }
+
+    err = groth16.Verify(proof, vk, publicWitness)
+    if err == nil {
+      break
+    }
+    if retries > 5 {
+      panic(err)
+    }
+    fmt.Println("generated bad proof, retrying...")
+    retries += 1
+  }
 
 	blsProof := proof.(*groth16_bls12381.Proof)
 	blsVk := vk
 	blsWitness := publicWitness.Vector().(fr.Vector)
 
-	// original_proof_bytes, err := json.Marshal(&G16ProofWithPublicInputs{
-	// 	Proof:        blsProof,
-	// 	PublicInputs: publicWitness,
-	// })
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// var g16VerifyingKey = G16VerifyingKey{
-	// 	VK: vk,
-	// }
-	// original_vk_bytes, err := json.Marshal(g16VerifyingKey)
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// fmt.Println("proofString", string(original_proof_bytes))
-	// fmt.Println("vkString", string(original_vk_bytes))
+	original_proof_bytes, err := json.Marshal(&G16ProofWithPublicInputs{
+		Proof:        blsProof,
+		PublicInputs: publicWitness,
+	})
+	if err != nil {
+		panic(err)
+	}
+	var g16VerifyingKey = G16VerifyingKey{
+		VK: vk,
+	}
+	original_vk_bytes, err := json.Marshal(g16VerifyingKey)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("proofString", string(original_proof_bytes))
+	fmt.Println("vkString", string(original_vk_bytes))
 
 	proof_city, err := serialize.ToJsonCityProof(blsProof, blsWitness)
 	if err != nil {
@@ -228,23 +240,28 @@ func VerifyProof(proofString string, vkString string) string {
 	var cityVk serialize.CityGroth16VerifierData
 
 	if err := json.Unmarshal([]byte(proofString), &cityProof); err != nil {
+    fmt.Println(err)
 		return "false"
 	}
 
 	g16ProofWithPublicInputs, err := FromCityProof(cityProof)
 	if err != nil {
+    fmt.Println(err)
 		return "false"
 	}
 
 	if err := json.Unmarshal([]byte(vkString), &cityVk); err != nil {
+    fmt.Println(err)
 		return "false"
 	}
 	g16VerifyingKey, err := FromCityVk(cityVk)
 	if err != nil {
+    fmt.Println(err)
 		return "false"
 	}
 
 	if err := groth16.Verify(g16ProofWithPublicInputs.Proof, g16VerifyingKey.VK, g16ProofWithPublicInputs.PublicInputs); err != nil {
+    fmt.Println(err)
 		return "false"
 	}
 	return "true"
