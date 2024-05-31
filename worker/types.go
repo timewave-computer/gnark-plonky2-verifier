@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 
 	"github.com/GopherJ/doge-covenant/serialize"
 	"github.com/consensys/gnark-crypto/ecc"
@@ -123,7 +124,7 @@ func FromCityProof(cityProof serialize.CityGroth16ProofData) (*G16ProofWithPubli
 
 	reader := bytes.NewReader(publicinputs_bytes)
 
-	if _, err = g16ProofWithPublicInputs.PublicInputs.ReadFrom(reader); err != nil {
+	if _, err = g16ProofWithPublicInputs.PublicInputs.ReadFrom(reader); err != nil && err != io.EOF {
 		return nil, fmt.Errorf("failed to read public inputs: %w", err)
 	}
 
