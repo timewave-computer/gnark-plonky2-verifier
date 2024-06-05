@@ -67,7 +67,7 @@ func Initialize(keystore_path string) {
 type CRVerifierCircuit struct {
 	PublicInputs            []frontend.Variable               `gnark:",public"`
 	Proof                   variables.Proof                   `gnark:",secret"`
-	VerifierOnlyCircuitData variables.VerifierOnlyCircuitData `gnark:",secret"`
+	VerifierOnlyCircuitData variables.VerifierOnlyCircuitData `gnark:"-"`
 
 	OriginalPublicInputs []gl.Variable `gnark:",secret"`
 
