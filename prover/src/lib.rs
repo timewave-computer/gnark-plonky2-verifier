@@ -134,9 +134,33 @@ mod tests {
 
     #[test]
     fn test_setup_once() {
+        // First, generate the key files
+        test_prover(Some("../testdata/0"), "/tmp/groth16/").unwrap();
+        
+        // Now initialize with the generated key files
         initialize("/tmp/groth16/").unwrap();
+        
+        // Run the test again to verify it works
         test_prover(Some("../testdata/0"), "/tmp/groth16/").unwrap();
         test_prover(Some("../testdata/0"), "/tmp/groth16/").unwrap();
         test_prover(Some("../testdata/0"), "/tmp/groth16/").unwrap();
+    }
+
+    #[test]
+    fn test_generate_wrapped_data() {
+        // Create a temporary directory for the wrapped data
+        let temp_dir = std::env::temp_dir().join("gnark_plonky2_test");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        
+        // Generate the wrapped data for your circuit
+        test_prover(Some(temp_dir.to_str().unwrap()), "testdata/my_circuit").unwrap();
+        
+        // Verify that the wrapped data was generated
+        assert!(temp_dir.join("testdata/my_circuit/common_circuit_data.json").exists());
+        assert!(temp_dir.join("testdata/my_circuit/proof_with_public_inputs.json").exists());
+        assert!(temp_dir.join("testdata/my_circuit/verifier_only_circuit_data.json").exists());
+        
+        // Clean up
+        std::fs::remove_dir_all(&temp_dir).unwrap();
     }
 }
