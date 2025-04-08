@@ -1,32 +1,16 @@
-# Gnark Plonky2 Verifier
+# Gnark Plonky2 Verifier - Forked by Valence
+This repo was forked as part of an exploration effort revolving around Plonkish proving systems.
+We are very likely not going to use this as it depends on a lot of deprecated infrastructure 
+and complex proof types that were used by succinct in their `succinctx` back in the days.
 
-This is an implementation of a [Plonky2](https://github.com/mir-protocol/plonky2) verifier in Gnark (supports Groth16 and PLONK).
+The only reason why we want to pin this and look into it is because it provides a nice
+interface for wrapping Plonky2 proofs (old version 0.2.0, not 1.0.2!) with groth16.
 
-Besides the verifier, there are some Gnark implementation of circuits in this repo that may be useful for other projects:
+We would love to see something similar for an up-to-date version of Plonky3.
 
-- [Goldilocks](https://github.com/succinctlabs/gnark-plonky2-verifier/blob/main/field/field.go)
-- [Poseidon](https://github.com/succinctlabs/gnark-plonky2-verifier/blob/main/poseidon/poseidon.go)
-- [FRI](https://github.com/succinctlabs/gnark-plonky2-verifier/blob/main/plonky2_verifier/fri.go)
+Someone at Succinct [made an effort to work towards this goal](https://github.com/raftedproc/simplified_p3_air_with_sp1_rec/blob/main/src/main.rs), 
+but the implementation is not finished.
 
-## Requirements
+What they do is essentially wrap a Plonky3 proof as an SP1 VM proof and prove it's verification using their in-house groth16 wrapper.
 
-- [Go (1.19+)](https://go.dev/doc/install)
-
-## Benchmark
-
-To run the benchmark,
-```
-go run benchmark.go
-```
-
-## Profiling
-
-First run the benchmark with profiling turned on
-```
-go run benchmark.go -profile
-```
-
-Then use the following command to generate a visualization of the pprof
-```
-go tool pprof --png gnark.pprof > verifier.png
-```
+This is also not idea for what we are trying to achieve.
